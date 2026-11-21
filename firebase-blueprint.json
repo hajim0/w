@@ -1,0 +1,847 @@
+{
+  "entities": {
+    "UserPrivate": {
+      "title": "UserPrivate",
+      "description": "Private user account profile, PII, preferences, and authoritative progress counters.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "maxLength": 254 },
+        "username": { "type": "string", "minLength": 2, "maxLength": 24, "pattern": "^[a-zA-Z0-9_]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "bio": { "type": "string", "maxLength": 160 },
+        "avatarUrl": { "type": "string", "maxLength": 300000 },
+        "inviteCode": { "type": "string", "minLength": 4, "maxLength": 16, "pattern": "^[A-Z0-9\\-]+$" },
+        "timezone": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "totalXp": { "type": "number" },
+        "weeklyXp": { "type": "number" },
+        "weekKey": { "type": "string", "pattern": "^\\d{4}-W\\d{2}$" },
+        "level": { "type": "number" },
+        "currentStreak": { "type": "number" },
+        "bestStreak": { "type": "number" },
+        "bestWeeklyRank": { "type": "number" },
+        "lastCheckInDate": { "type": "string", "maxLength": 10 },
+        "lastDailyBonusDate": { "type": "string", "maxLength": 10 },
+        "lastStreak7BonusDate": { "type": "string", "maxLength": 10 },
+        "friendsCount": { "type": "number" },
+        "winsCount": { "type": "number" },
+        "referredByUid": { "type": "string", "maxLength": 128 },
+        "firstCheckInDone": { "type": "boolean" },
+        "privacySettings": { "type": "object" },
+        "notificationSettings": { "type": "object" },
+        "lastTxId": { "type": "string", "maxLength": 200 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "email",
+        "username",
+        "displayName",
+        "inviteCode",
+        "timezone",
+        "totalXp",
+        "weeklyXp",
+        "weekKey",
+        "level",
+        "currentStreak",
+        "bestStreak",
+        "friendsCount",
+        "privacySettings",
+        "notificationSettings",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PublicProfile": {
+      "title": "PublicProfile",
+      "description": "Public non-PII profile for friend search, leaderboard, and challenge views.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "username": { "type": "string", "minLength": 2, "maxLength": 24, "pattern": "^[a-zA-Z0-9_]+$" },
+        "usernameLower": { "type": "string", "minLength": 2, "maxLength": 24, "pattern": "^[a-z0-9_]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "bio": { "type": "string", "maxLength": 160 },
+        "avatarUrl": { "type": "string", "maxLength": 300000 },
+        "inviteCode": { "type": "string", "minLength": 4, "maxLength": 16, "pattern": "^[A-Z0-9\\-]+$" },
+        "totalXp": { "type": "number" },
+        "weeklyXp": { "type": "number" },
+        "weekKey": { "type": "string", "pattern": "^\\d{4}-W\\d{2}$" },
+        "level": { "type": "number" },
+        "currentStreak": { "type": "number" },
+        "bestStreak": { "type": "number" },
+        "bestWeeklyRank": { "type": "number" },
+        "weeklyCompetitionScore": { "type": "number" },
+        "weeklyConsistencyRate": { "type": "number" },
+        "friendsCount": { "type": "number" },
+        "winsCount": { "type": "number" },
+        "isDiscoverable": { "type": "boolean" },
+        "showProfilePublicly": { "type": "boolean" },
+        "unlockedBadges": { "type": "array" },
+        "lastTxId": { "type": "string", "maxLength": 200 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "username",
+        "usernameLower",
+        "displayName",
+        "inviteCode",
+        "totalXp",
+        "weeklyXp",
+        "weekKey",
+        "level",
+        "currentStreak",
+        "bestStreak",
+        "friendsCount",
+        "isDiscoverable",
+        "showProfilePublicly",
+        "unlockedBadges",
+        "updatedAt"
+      ]
+    },
+    "UsernameLookup": {
+      "title": "UsernameLookup",
+      "description": "Unique username lookup mapping usernameLower to uid.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "username": { "type": "string", "minLength": 2, "maxLength": 24 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "username", "createdAt"]
+    },
+    "InviteLookup": {
+      "title": "InviteLookup",
+      "description": "Invite code lookup mapping code to uid.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "inviteCode": { "type": "string", "minLength": 4, "maxLength": 16 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "inviteCode", "createdAt"]
+    },
+    "Habit": {
+      "title": "Habit",
+      "description": "User-defined personal or competition habit configuration and schedule.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 48 },
+        "icon": { "type": "string", "minLength": 1, "maxLength": 32 },
+        "category": { "type": "string", "enum": ["life", "fitness", "learning", "work", "finance", "custom"] },
+        "frequency": { "type": "string", "enum": ["daily", "weekly"] },
+        "targetDays": { "type": "array" },
+        "recordType": { "type": "string", "enum": ["check", "value", "time"] },
+        "targetValue": { "type": "number" },
+        "targetTime": { "type": "string", "maxLength": 5 },
+        "unit": { "type": "string", "maxLength": 16 },
+        "reminderTime": { "type": "string", "maxLength": 5 },
+        "xpReward": { "type": "number" },
+        "habitPurpose": { "type": "string", "enum": ["personal", "competition"] },
+        "isPublic": { "type": "boolean" },
+        "requirePhoto": { "type": "boolean" },
+        "sortOrder": { "type": "number" },
+        "archived": { "type": "boolean" },
+        "totalCompletions": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "userId",
+        "title",
+        "icon",
+        "category",
+        "frequency",
+        "targetDays",
+        "recordType",
+        "targetValue",
+        "unit",
+        "xpReward",
+        "isPublic",
+        "requirePhoto",
+        "sortOrder",
+        "archived",
+        "totalCompletions",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "HabitRecord": {
+      "title": "HabitRecord",
+      "description": "Immutable-XP daily habit completion record keyed by uid_habitId_localDate with verification metadata.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "habitId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "habitTitle": { "type": "string", "minLength": 1, "maxLength": 48 },
+        "habitIcon": { "type": "string", "minLength": 1, "maxLength": 32 },
+        "habitCategory": { "type": "string", "enum": ["life", "fitness", "learning", "work", "finance", "custom"] },
+        "localDate": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "recordType": { "type": "string", "enum": ["check", "value", "time"] },
+        "completedValue": { "type": "number" },
+        "completedTime": { "type": "string", "maxLength": 5 },
+        "unit": { "type": "string", "maxLength": 16 },
+        "note": { "type": "string", "maxLength": 200 },
+        "photoDataUrl": { "type": "string", "maxLength": 300000 },
+        "timerSeconds": { "type": "number" },
+        "isCompetitionIncluded": { "type": "boolean" },
+        "verificationLevel": { "type": "string", "enum": ["basic", "verified", "integrated"] },
+        "verificationStatus": { "type": "string", "enum": ["verified", "pending_review", "rejected"] },
+        "editCount": { "type": "number" },
+        "xpEarned": { "type": "number" },
+        "isPublic": { "type": "boolean" },
+        "completedAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "userId",
+        "habitId",
+        "habitTitle",
+        "habitIcon",
+        "habitCategory",
+        "localDate",
+        "recordType",
+        "completedValue",
+        "unit",
+        "xpEarned",
+        "isPublic",
+        "completedAt",
+        "updatedAt"
+      ]
+    },
+    "HabitRecordAuditLog": {
+      "title": "HabitRecordAuditLog",
+      "description": "Append-only audit log recording edits made to existing habit completion records.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 180, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "recordId": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "habitId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "localDate": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "action": { "type": "string", "enum": ["edit"] },
+        "previousValue": { "type": "number" },
+        "newValue": { "type": "number" },
+        "previousTime": { "type": "string", "maxLength": 5 },
+        "newTime": { "type": "string", "maxLength": 5 },
+        "previousVerificationLevel": { "type": "string", "enum": ["basic", "verified", "integrated"] },
+        "newVerificationLevel": { "type": "string", "enum": ["basic", "verified", "integrated"] },
+        "reason": { "type": "string", "maxLength": 160 },
+        "editedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "recordId",
+        "userId",
+        "habitId",
+        "localDate",
+        "action",
+        "previousValue",
+        "newValue",
+        "previousVerificationLevel",
+        "newVerificationLevel",
+        "editedAt"
+      ]
+    },
+    "XpTransaction": {
+      "title": "XpTransaction",
+      "description": "Immutable XP transaction ledger preventing duplicate XP claims.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "type": { "type": "string", "enum": ["habit", "daily_bonus", "streak_7", "challenge_win", "team_goal", "league_reward", "referral_bonus"] },
+        "amount": { "type": "number" },
+        "sourceId": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "localDate": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "weekKey": { "type": "string", "pattern": "^\\d{4}-W\\d{2}$" },
+        "description": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "type", "amount", "sourceId", "localDate", "weekKey", "description", "createdAt"]
+    },
+    "CompetitionSeason": {
+      "title": "CompetitionSeason",
+      "description": "7-day Weekly League season with locked rules, participants, and settlement history.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "leagueType": { "type": "string", "enum": ["circle", "private"] },
+        "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "weekKey": { "type": "string", "pattern": "^\\d{4}-W\\d{2}$" },
+        "startDate": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "endDate": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "creatorId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "inviteCode": { "type": "string", "maxLength": 16 },
+        "memberUids": { "type": "array" },
+        "minVerificationLevel": { "type": "string", "enum": ["basic", "verified"] },
+        "maxCompetitionHabits": { "type": "number" },
+        "scoringWeights": { "type": "object" },
+        "rulesLocked": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["active", "settled"] },
+        "winnerId": { "type": "string", "maxLength": 128 },
+        "mostImprovedUid": { "type": "string", "maxLength": 128 },
+        "settledAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "leagueType",
+        "name",
+        "weekKey",
+        "startDate",
+        "endDate",
+        "creatorId",
+        "memberUids",
+        "minVerificationLevel",
+        "maxCompetitionHabits",
+        "scoringWeights",
+        "rulesLocked",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "CompetitionParticipant": {
+      "title": "CompetitionParticipant",
+      "description": "Participant registration and rule acceptance for a Weekly League season.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 280, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "seasonId": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "weekKey": { "type": "string", "pattern": "^\\d{4}-W\\d{2}$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "memberUids": { "type": "array" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "username": { "type": "string", "minLength": 2, "maxLength": 24 },
+        "avatarUrl": { "type": "string", "maxLength": 300000 },
+        "level": { "type": "number" },
+        "titleKey": { "type": "string", "maxLength": 32 },
+        "rulesAccepted": { "type": "boolean" },
+        "joinedAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "seasonId",
+        "weekKey",
+        "userId",
+        "memberUids",
+        "displayName",
+        "username",
+        "level",
+        "titleKey",
+        "rulesAccepted",
+        "joinedAt",
+        "updatedAt"
+      ]
+    },
+    "CompetitionScore": {
+      "title": "CompetitionScore",
+      "description": "Standardized weekly Competition Score (60% consistency, 25% goal attainment, 15% stability) and multi-board metrics.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 280, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "seasonId": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "weekKey": { "type": "string", "pattern": "^\\d{4}-W\\d{2}$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "visibleTo": { "type": "array" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "avatarUrl": { "type": "string", "maxLength": 300000 },
+        "level": { "type": "number" },
+        "competitionScore": { "type": "number" },
+        "consistencyRate": { "type": "number" },
+        "goalAttainmentRate": { "type": "number" },
+        "stabilityRate": { "type": "number" },
+        "prevWeekConsistencyRate": { "type": "number" },
+        "improvementDelta": { "type": "number" },
+        "weeklyXp": { "type": "number" },
+        "completedCount": { "type": "number" },
+        "scheduledCount": { "type": "number" },
+        "verifiedCount": { "type": "number" },
+        "activeDays": { "type": "number" },
+        "seasonStatus": { "type": "string", "enum": ["active", "settled"] },
+        "rewardClaimed": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "seasonId",
+        "weekKey",
+        "userId",
+        "visibleTo",
+        "displayName",
+        "level",
+        "competitionScore",
+        "consistencyRate",
+        "goalAttainmentRate",
+        "stabilityRate",
+        "prevWeekConsistencyRate",
+        "improvementDelta",
+        "weeklyXp",
+        "completedCount",
+        "scheduledCount",
+        "verifiedCount",
+        "activeDays",
+        "seasonStatus",
+        "rewardClaimed",
+        "updatedAt"
+      ]
+    },
+    "Friendship": {
+      "title": "Friendship",
+      "description": "Two-party friendship state.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 260, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "requesterId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "recipientId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "participants": { "type": "array" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "declined"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "requesterId", "recipientId", "participants", "status", "createdAt", "updatedAt"]
+    },
+    "ActivityFeedItem": {
+      "title": "ActivityFeedItem",
+      "description": "Public habit check-in feed item scoped to explicit visibleTo circle.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "authorName": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "authorUsername": { "type": "string", "minLength": 2, "maxLength": 24 },
+        "authorAvatar": { "type": "string", "maxLength": 300000 },
+        "habitId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "habitTitle": { "type": "string", "minLength": 1, "maxLength": 48 },
+        "habitIcon": { "type": "string", "minLength": 1, "maxLength": 32 },
+        "habitCategory": { "type": "string", "maxLength": 24 },
+        "recordId": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "localDate": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "recordType": { "type": "string", "enum": ["check", "value", "time"] },
+        "completedValue": { "type": "number" },
+        "completedTime": { "type": "string", "maxLength": 5 },
+        "unit": { "type": "string", "maxLength": 16 },
+        "verificationLevel": { "type": "string", "enum": ["basic", "verified", "integrated"] },
+        "isCompetitionIncluded": { "type": "boolean" },
+        "xpEarned": { "type": "number" },
+        "dailyCompleted": { "type": "number" },
+        "dailyTotal": { "type": "number" },
+        "streakDays": { "type": "number" },
+        "photoDataUrl": { "type": "string", "maxLength": 300000 },
+        "visibleTo": { "type": "array" },
+        "likesCount": { "type": "number" },
+        "cheersCount": { "type": "number" },
+        "commentsCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "userId",
+        "authorName",
+        "authorUsername",
+        "habitId",
+        "habitTitle",
+        "habitIcon",
+        "habitCategory",
+        "recordId",
+        "localDate",
+        "recordType",
+        "completedValue",
+        "unit",
+        "xpEarned",
+        "dailyCompleted",
+        "dailyTotal",
+        "streakDays",
+        "visibleTo",
+        "likesCount",
+        "cheersCount",
+        "commentsCount",
+        "createdAt"
+      ]
+    },
+    "FeedReaction": {
+      "title": "FeedReaction",
+      "description": "User reaction (like or cheer) on an activity feed item.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "type": { "type": "string", "enum": ["like", "cheer"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "displayName", "type", "createdAt"]
+    },
+    "FeedComment": {
+      "title": "FeedComment",
+      "description": "Comment on an activity feed item.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "feedId": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "authorName": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "authorAvatar": { "type": "string", "maxLength": 300000 },
+        "text": { "type": "string", "minLength": 1, "maxLength": 280 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "feedId", "userId", "authorName", "text", "createdAt"]
+    },
+    "Challenge": {
+      "title": "Challenge",
+      "description": "1v1 friend habit challenge with locked rules, daily cap, and scoring method.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "title": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "templateKey": { "type": "string", "maxLength": 40 },
+        "creatorId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "opponentId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "participantIds": { "type": "array" },
+        "habitTitle": { "type": "string", "minLength": 1, "maxLength": 48 },
+        "habitIcon": { "type": "string", "minLength": 1, "maxLength": 32 },
+        "recordType": { "type": "string", "enum": ["check", "value", "time"] },
+        "targetValue": { "type": "number" },
+        "targetTime": { "type": "string", "maxLength": 5 },
+        "dailyCap": { "type": "number" },
+        "unit": { "type": "string", "maxLength": 16 },
+        "startDate": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "endDate": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "totalDays": { "type": "number" },
+        "ruleType": { "type": "string", "enum": ["most_completions", "highest_rate"] },
+        "scoringMethod": { "type": "string", "enum": ["valid_count", "capped_total_value", "completion_rate"] },
+        "requiredVerificationLevel": { "type": "string", "enum": ["basic", "verified"] },
+        "rulesLocked": { "type": "boolean" },
+        "xpPrize": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "active", "completed", "declined"] },
+        "winnerId": { "type": "string", "maxLength": 128 },
+        "settledAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "title",
+        "creatorId",
+        "opponentId",
+        "participantIds",
+        "habitTitle",
+        "habitIcon",
+        "recordType",
+        "targetValue",
+        "unit",
+        "startDate",
+        "endDate",
+        "totalDays",
+        "ruleType",
+        "xpPrize",
+        "status",
+        "winnerId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ChallengeMember": {
+      "title": "ChallengeMember",
+      "description": "Participant progress in a 1v1 challenge.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 260 },
+        "challengeId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "participantIds": { "type": "array" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "avatarUrl": { "type": "string", "maxLength": 300000 },
+        "linkedHabitId": { "type": "string", "maxLength": 128 },
+        "completedDates": { "type": "array" },
+        "completionsCount": { "type": "number" },
+        "effectiveValue": { "type": "number" },
+        "verifiedCompletionsCount": { "type": "number" },
+        "completionRate": { "type": "number" },
+        "claimedReward": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "challengeId",
+        "userId",
+        "participantIds",
+        "displayName",
+        "linkedHabitId",
+        "completedDates",
+        "completionsCount",
+        "completionRate",
+        "claimedReward",
+        "updatedAt"
+      ]
+    },
+    "Team": {
+      "title": "Team",
+      "description": "Private accountability team challenge (3-10 members) with per-member minimum contribution.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 48 },
+        "description": { "type": "string", "maxLength": 160 },
+        "creatorId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "inviteCode": { "type": "string", "minLength": 4, "maxLength": 16, "pattern": "^[A-Z0-9\\-]+$" },
+        "memberUids": { "type": "array" },
+        "memberCount": { "type": "number" },
+        "maxMembers": { "type": "number" },
+        "goalTitle": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "goalType": { "type": "string", "enum": ["total_completions", "total_workouts", "total_reading_mins", "team_completion_rate"] },
+        "goalUnit": { "type": "string", "maxLength": 16 },
+        "minMemberContribution": { "type": "number" },
+        "targetTotalCompletions": { "type": "number" },
+        "currentTotalCompletions": { "type": "number" },
+        "startDate": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "endDate": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "xpPrize": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "completed"] },
+        "achievementUnlocked": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "name",
+        "creatorId",
+        "inviteCode",
+        "memberUids",
+        "memberCount",
+        "maxMembers",
+        "goalTitle",
+        "targetTotalCompletions",
+        "currentTotalCompletions",
+        "startDate",
+        "endDate",
+        "xpPrize",
+        "status",
+        "achievementUnlocked",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "TeamInvite": {
+      "title": "TeamInvite",
+      "description": "Invite code lookup for joining a private team challenge.",
+      "type": "object",
+      "properties": {
+        "inviteCode": { "type": "string", "minLength": 4, "maxLength": 16 },
+        "teamId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "teamName": { "type": "string", "minLength": 1, "maxLength": 48 },
+        "creatorId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["inviteCode", "teamId", "teamName", "creatorId", "createdAt"]
+    },
+    "TeamMember": {
+      "title": "TeamMember",
+      "description": "Member contribution inside a private team challenge.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 260 },
+        "teamId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "memberUids": { "type": "array" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "avatarUrl": { "type": "string", "maxLength": 300000 },
+        "role": { "type": "string", "enum": ["owner", "member"] },
+        "contributionCount": { "type": "number" },
+        "completedDates": { "type": "array" },
+        "claimedReward": { "type": "boolean" },
+        "joinedAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "teamId",
+        "userId",
+        "displayName",
+        "role",
+        "contributionCount",
+        "completedDates",
+        "claimedReward",
+        "joinedAt",
+        "updatedAt"
+      ]
+    },
+    "Achievement": {
+      "title": "Achievement",
+      "description": "Unlocked achievement badge summary for a user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 180 },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "badgeKey": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "title": { "type": "string", "minLength": 1, "maxLength": 48 },
+        "description": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "unlockedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "badgeKey", "title", "description", "unlockedAt"]
+    },
+    "AchievementRecord": {
+      "title": "AchievementRecord",
+      "description": "Immutable data-verified achievement unlock record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 180 },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "badgeKey": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "title": { "type": "string", "minLength": 1, "maxLength": 48 },
+        "description": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "sourceMetric": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "unlockedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "badgeKey", "title", "description", "sourceMetric", "unlockedAt"]
+    },
+    "ReferralRecord": {
+      "title": "ReferralRecord",
+      "description": "Tracks friend referral activation once the invited user completes their first valid check-in.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "referrerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "invitedUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "invitedName": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "status": { "type": "string", "enum": ["pending", "activated"] },
+        "firstRecordId": { "type": "string", "maxLength": 160 },
+        "claimedByReferrer": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "activatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "referrerUid", "invitedUid", "invitedName", "status", "claimedByReferrer", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "User notification inbox item.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "senderId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "senderName": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "senderAvatar": { "type": "string", "maxLength": 300000 },
+        "type": { "type": "string", "enum": ["friend_request", "friend_accepted", "like", "cheer", "comment", "challenge_invite", "challenge_result", "team_invite", "achievement"] },
+        "title": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "body": { "type": "string", "maxLength": 180 },
+        "targetTab": { "type": "string", "maxLength": 24 },
+        "targetId": { "type": "string", "maxLength": 160 },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "senderId", "senderName", "type", "title", "read", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserPrivate" },
+      "description": "Owner-only private user account and settings."
+    },
+    "/public_profiles/{userId}": {
+      "schema": { "$ref": "#/entities/PublicProfile" },
+      "description": "Public non-PII profile and leaderboard stats."
+    },
+    "/usernames/{usernameLower}": {
+      "schema": { "$ref": "#/entities/UsernameLookup" },
+      "description": "Username uniqueness registry."
+    },
+    "/invites/{inviteCode}": {
+      "schema": { "$ref": "#/entities/InviteLookup" },
+      "description": "Friend invite code lookup."
+    },
+    "/habits/{habitId}": {
+      "schema": { "$ref": "#/entities/Habit" },
+      "description": "User personal and competition habits (private habits strictly owner-only)."
+    },
+    "/habit_records/{recordId}": {
+      "schema": { "$ref": "#/entities/HabitRecord" },
+      "description": "Daily habit completion records keyed by uid_habitId_localDate."
+    },
+    "/habit_record_audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/HabitRecordAuditLog" },
+      "description": "Append-only audit trail for modifications to habit completion records."
+    },
+    "/xp_transactions/{txId}": {
+      "schema": { "$ref": "#/entities/XpTransaction" },
+      "description": "Immutable XP transaction ledger."
+    },
+    "/competition_seasons/{seasonId}": {
+      "schema": { "$ref": "#/entities/CompetitionSeason" },
+      "description": "Weekly League 7-day competition seasons and locked scoring rules."
+    },
+    "/competition_participants/{participantId}": {
+      "schema": { "$ref": "#/entities/CompetitionParticipant" },
+      "description": "Weekly League registered participants."
+    },
+    "/competition_scores/{scoreId}": {
+      "schema": { "$ref": "#/entities/CompetitionScore" },
+      "description": "Standardized Competition Score records for Weekly League rankings."
+    },
+    "/friendships/{friendshipId}": {
+      "schema": { "$ref": "#/entities/Friendship" },
+      "description": "Two-party friendship requests and accepted connections."
+    },
+    "/activity_feed/{feedId}": {
+      "schema": { "$ref": "#/entities/ActivityFeedItem" },
+      "description": "Public habit check-ins shared with friends."
+    },
+    "/activity_feed/{feedId}/reactions/{userId}": {
+      "schema": { "$ref": "#/entities/FeedReaction" },
+      "description": "Likes and cheers on activity feed items."
+    },
+    "/activity_feed/{feedId}/comments/{commentId}": {
+      "schema": { "$ref": "#/entities/FeedComment" },
+      "description": "Comments on activity feed items."
+    },
+    "/challenges/{challengeId}": {
+      "schema": { "$ref": "#/entities/Challenge" },
+      "description": "1v1 friend habit challenges."
+    },
+    "/challenge_members/{memberId}": {
+      "schema": { "$ref": "#/entities/ChallengeMember" },
+      "description": "1v1 challenge participant progress."
+    },
+    "/teams/{teamId}": {
+      "schema": { "$ref": "#/entities/Team" },
+      "description": "Legacy private team challenges (3-10 members)."
+    },
+    "/team_challenges/{teamId}": {
+      "schema": { "$ref": "#/entities/Team" },
+      "description": "Private team challenges (3-10 members) with per-member minimum contribution."
+    },
+    "/team_invites/{inviteCode}": {
+      "schema": { "$ref": "#/entities/TeamInvite" },
+      "description": "Team invite code lookup."
+    },
+    "/team_members/{memberId}": {
+      "schema": { "$ref": "#/entities/TeamMember" },
+      "description": "Team member progress and contributions."
+    },
+    "/achievements/{achievementId}": {
+      "schema": { "$ref": "#/entities/Achievement" },
+      "description": "User achievement badges."
+    },
+    "/achievement_records/{recordId}": {
+      "schema": { "$ref": "#/entities/AchievementRecord" },
+      "description": "Immutable data-verified achievement unlock records."
+    },
+    "/referrals/{invitedUid}": {
+      "schema": { "$ref": "#/entities/ReferralRecord" },
+      "description": "Friend referral activation tracking."
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "User notification inbox."
+    }
+  }
+}

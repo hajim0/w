@@ -1,0 +1,1404 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global safety net: default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ====================
+    // Global Primitives
+    // ====================
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 180 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidDateStr(d) {
+      return d is string && d.size() == 10 && d.matches('^\\d{4}-\\d{2}-\\d{2}$');
+    }
+
+    function isValidWeekKey(w) {
+      return w is string && w.size() == 8 && w.matches('^\\d{4}-W\\d{2}$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // ====================
+    // Validation Blueprints
+    // ====================
+    function isValidUser(data, userId) {
+      return data.keys().hasAll([
+        'uid', 'email', 'username', 'displayName', 'inviteCode', 'timezone',
+        'totalXp', 'weeklyXp', 'weekKey', 'level', 'currentStreak', 'bestStreak',
+        'friendsCount', 'privacySettings', 'notificationSettings', 'createdAt', 'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'uid', 'email', 'username', 'displayName', 'bio', 'avatarUrl', 'inviteCode', 'timezone',
+        'totalXp', 'weeklyXp', 'weekKey', 'level', 'currentStreak', 'bestStreak', 'bestWeeklyRank',
+        'lastCheckInDate', 'lastDailyBonusDate', 'lastStreak7BonusDate', 'friendsCount', 'winsCount',
+        'referredByUid', 'firstCheckInDone',
+        'privacySettings', 'notificationSettings', 'lastTxId', 'createdAt', 'updatedAt'
+      ])
+      && data.uid == userId
+      && data.email is string && data.email.size() <= 254
+      && data.username is string && data.username.size() >= 2 && data.username.size() <= 24 && data.username.matches('^[a-zA-Z0-9_]+$')
+      && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 40
+      && (!('bio' in data) || (data.bio is string && data.bio.size() <= 160))
+      && (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() <= 300000))
+      && data.inviteCode is string && data.inviteCode.size() >= 4 && data.inviteCode.size() <= 16 && data.inviteCode.matches('^[A-Z0-9\\-]+$')
+      && data.timezone is string && data.timezone.size() >= 1 && data.timezone.size() <= 64
+      && data.totalXp is number && data.totalXp >= 0
+      && data.weeklyXp is number && data.weeklyXp >= 0
+      && isValidWeekKey(data.weekKey)
+      && data.level is number && data.level >= 1 && data.level <= 999
+      && data.currentStreak is number && data.currentStreak >= 0
+      && data.bestStreak is number && data.bestStreak >= 0
+      && (!('bestWeeklyRank' in data) || (data.bestWeeklyRank is number && data.bestWeeklyRank >= 0))
+      && (!('lastCheckInDate' in data) || (data.lastCheckInDate is string && data.lastCheckInDate.size() <= 10))
+      && (!('lastDailyBonusDate' in data) || (data.lastDailyBonusDate is string && data.lastDailyBonusDate.size() <= 10))
+      && (!('lastStreak7BonusDate' in data) || (data.lastStreak7BonusDate is string && data.lastStreak7BonusDate.size() <= 10))
+      && data.friendsCount is number && data.friendsCount >= 0
+      && (!('winsCount' in data) || (data.winsCount is number && data.winsCount >= 0))
+      && (!('referredByUid' in data) || (data.referredByUid is string && data.referredByUid.size() <= 128))
+      && (!('firstCheckInDone' in data) || data.firstCheckInDone is bool)
+      && data.privacySettings is map
+      && data.privacySettings.keys().hasAll(['showActivityToFriends', 'showProfilePublicly', 'discoverable'])
+      && data.privacySettings.keys().hasOnly(['showActivityToFriends', 'showProfilePublicly', 'discoverable'])
+      && data.privacySettings.showActivityToFriends is bool
+      && data.privacySettings.showProfilePublicly is bool
+      && data.privacySettings.discoverable is bool
+      && data.notificationSettings is map
+      && data.notificationSettings.keys().hasAll(['dailyReminder', 'friendActivity', 'challengeUpdates'])
+      && data.notificationSettings.keys().hasOnly(['dailyReminder', 'friendActivity', 'challengeUpdates'])
+      && data.notificationSettings.dailyReminder is bool
+      && data.notificationSettings.friendActivity is bool
+      && data.notificationSettings.challengeUpdates is bool
+      && (!('lastTxId' in data) || (data.lastTxId is string && data.lastTxId.size() <= 200))
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidPublicProfile(data, userId) {
+      return data.keys().hasAll([
+        'uid', 'username', 'usernameLower', 'displayName', 'inviteCode',
+        'totalXp', 'weeklyXp', 'weekKey', 'level', 'currentStreak', 'bestStreak',
+        'friendsCount', 'isDiscoverable', 'showProfilePublicly', 'unlockedBadges', 'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'uid', 'username', 'usernameLower', 'displayName', 'bio', 'avatarUrl', 'inviteCode',
+        'totalXp', 'weeklyXp', 'weekKey', 'level', 'currentStreak', 'bestStreak', 'bestWeeklyRank',
+        'weeklyCompetitionScore', 'weeklyConsistencyRate',
+        'friendsCount', 'winsCount', 'isDiscoverable', 'showProfilePublicly', 'unlockedBadges',
+        'lastTxId', 'updatedAt'
+      ])
+      && data.uid == userId
+      && data.username is string && data.username.size() >= 2 && data.username.size() <= 24 && data.username.matches('^[a-zA-Z0-9_]+$')
+      && data.usernameLower is string && data.usernameLower.size() >= 2 && data.usernameLower.size() <= 24 && data.usernameLower.matches('^[a-z0-9_]+$')
+      && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 40
+      && (!('bio' in data) || (data.bio is string && data.bio.size() <= 160))
+      && (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() <= 300000))
+      && data.inviteCode is string && data.inviteCode.size() >= 4 && data.inviteCode.size() <= 16
+      && data.totalXp is number && data.totalXp >= 0
+      && data.weeklyXp is number && data.weeklyXp >= 0
+      && isValidWeekKey(data.weekKey)
+      && data.level is number && data.level >= 1
+      && data.currentStreak is number && data.currentStreak >= 0
+      && data.bestStreak is number && data.bestStreak >= 0
+      && (!('bestWeeklyRank' in data) || (data.bestWeeklyRank is number && data.bestWeeklyRank >= 0))
+      && (!('weeklyCompetitionScore' in data) || (data.weeklyCompetitionScore is number && data.weeklyCompetitionScore >= 0 && data.weeklyCompetitionScore <= 1000))
+      && (!('weeklyConsistencyRate' in data) || (data.weeklyConsistencyRate is number && data.weeklyConsistencyRate >= 0 && data.weeklyConsistencyRate <= 100))
+      && data.friendsCount is number && data.friendsCount >= 0
+      && (!('winsCount' in data) || (data.winsCount is number && data.winsCount >= 0))
+      && data.isDiscoverable is bool
+      && data.showProfilePublicly is bool
+      && data.unlockedBadges is list && data.unlockedBadges.size() <= 24
+      && (data.unlockedBadges.size() == 0 || data.unlockedBadges[0] is string)
+      && (!('lastTxId' in data) || (data.lastTxId is string && data.lastTxId.size() <= 200))
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidHabit(data, habitId) {
+      return data.keys().hasAll([
+        'id', 'userId', 'title', 'icon', 'category', 'frequency', 'targetDays',
+        'recordType', 'targetValue', 'unit', 'xpReward', 'isPublic', 'requirePhoto',
+        'sortOrder', 'archived', 'totalCompletions', 'createdAt', 'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'id', 'userId', 'title', 'icon', 'category', 'frequency', 'targetDays',
+        'recordType', 'targetValue', 'targetTime', 'unit', 'reminderTime', 'xpReward',
+        'habitPurpose', 'isPublic', 'requirePhoto', 'sortOrder', 'archived', 'totalCompletions', 'createdAt', 'updatedAt'
+      ])
+      && data.id == habitId
+      && data.userId == request.auth.uid
+      && data.title is string && data.title.size() >= 1 && data.title.size() <= 48
+      && data.icon is string && data.icon.size() >= 1 && data.icon.size() <= 32
+      && data.category in ['life', 'fitness', 'learning', 'work', 'finance', 'custom']
+      && data.frequency in ['daily', 'weekly']
+      && data.targetDays is list && data.targetDays.size() <= 7
+      && (data.targetDays.size() == 0 || data.targetDays[0] is int)
+      && data.recordType in ['check', 'value', 'time']
+      && data.targetValue is number && data.targetValue >= 0 && data.targetValue <= 10000
+      && (!('targetTime' in data) || (data.targetTime is string && data.targetTime.size() <= 5))
+      && data.unit is string && data.unit.size() <= 16
+      && (!('reminderTime' in data) || (data.reminderTime is string && data.reminderTime.size() <= 5))
+      && data.xpReward in [10, 20]
+      && (!('habitPurpose' in data) || data.habitPurpose in ['personal', 'competition'])
+      && data.isPublic is bool
+      && data.requirePhoto is bool
+      && data.sortOrder is number && data.sortOrder >= 0
+      && data.archived is bool
+      && data.totalCompletions is number && data.totalCompletions >= 0
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidHabitRecord(data, recordId) {
+      return data.keys().hasAll([
+        'id', 'userId', 'habitId', 'habitTitle', 'habitIcon', 'habitCategory',
+        'localDate', 'recordType', 'completedValue', 'unit', 'xpEarned',
+        'isPublic', 'completedAt', 'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'id', 'userId', 'habitId', 'habitTitle', 'habitIcon', 'habitCategory',
+        'localDate', 'recordType', 'completedValue', 'completedTime', 'unit', 'note',
+        'photoDataUrl', 'timerSeconds', 'isCompetitionIncluded', 'verificationLevel',
+        'verificationStatus', 'editCount', 'xpEarned', 'isPublic', 'completedAt', 'updatedAt'
+      ])
+      && data.id == recordId
+      && data.userId == request.auth.uid
+      && isValidId(data.habitId)
+      && data.habitTitle is string && data.habitTitle.size() >= 1 && data.habitTitle.size() <= 48
+      && data.habitIcon is string && data.habitIcon.size() >= 1 && data.habitIcon.size() <= 32
+      && data.habitCategory in ['life', 'fitness', 'learning', 'work', 'finance', 'custom']
+      && isValidDateStr(data.localDate)
+      && data.recordType in ['check', 'value', 'time']
+      && data.completedValue is number && data.completedValue >= 0 && data.completedValue <= 10000
+      && (!('completedTime' in data) || (data.completedTime is string && data.completedTime.size() <= 5))
+      && data.unit is string && data.unit.size() <= 16
+      && (!('note' in data) || (data.note is string && data.note.size() <= 200))
+      && (!('photoDataUrl' in data) || (data.photoDataUrl is string && data.photoDataUrl.size() <= 300000))
+      && (!('timerSeconds' in data) || (data.timerSeconds is number && data.timerSeconds >= 0 && data.timerSeconds <= 86400))
+      && (!('isCompetitionIncluded' in data) || data.isCompetitionIncluded is bool)
+      && (!('verificationLevel' in data) || data.verificationLevel in ['basic', 'verified', 'integrated'])
+      && (!('verificationStatus' in data) || data.verificationStatus in ['verified', 'pending_review', 'rejected'])
+      && (!('editCount' in data) || (data.editCount is number && data.editCount >= 0 && data.editCount <= 20))
+      && data.xpEarned in [10, 20]
+      && data.isPublic is bool
+      && data.completedAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidHabitRecordAuditLog(data, logId) {
+      return data.keys().hasAll([
+        'id', 'recordId', 'userId', 'habitId', 'localDate', 'action',
+        'previousValue', 'newValue', 'previousVerificationLevel', 'newVerificationLevel', 'editedAt'
+      ])
+      && data.keys().hasOnly([
+        'id', 'recordId', 'userId', 'habitId', 'localDate', 'action',
+        'previousValue', 'newValue', 'previousTime', 'newTime',
+        'previousVerificationLevel', 'newVerificationLevel', 'reason', 'editedAt'
+      ])
+      && data.id == logId
+      && data.userId == request.auth.uid
+      && isValidId(data.recordId)
+      && isValidId(data.habitId)
+      && isValidDateStr(data.localDate)
+      && data.action == 'edit'
+      && data.previousValue is number && data.previousValue >= 0
+      && data.newValue is number && data.newValue >= 0 && data.newValue <= 10000
+      && (!('previousTime' in data) || (data.previousTime is string && data.previousTime.size() <= 5))
+      && (!('newTime' in data) || (data.newTime is string && data.newTime.size() <= 5))
+      && data.previousVerificationLevel in ['basic', 'verified', 'integrated']
+      && data.newVerificationLevel in ['basic', 'verified', 'integrated']
+      && (!('reason' in data) || (data.reason is string && data.reason.size() <= 160))
+      && data.editedAt is timestamp;
+    }
+
+    function isValidXpTransaction(data, txId) {
+      return data.keys().hasAll(['id', 'userId', 'type', 'amount', 'sourceId', 'localDate', 'weekKey', 'description', 'createdAt'])
+      && data.keys().hasOnly(['id', 'userId', 'type', 'amount', 'sourceId', 'localDate', 'weekKey', 'description', 'createdAt'])
+      && data.id == txId
+      && data.userId == request.auth.uid
+      && txId.matches('^' + request.auth.uid + '_[a-zA-Z0-9_\\-]+$')
+      && data.type in ['habit', 'daily_bonus', 'streak_7', 'challenge_win', 'team_goal', 'league_reward', 'referral_bonus']
+      && data.amount is number && data.amount > 0
+      && (
+        (data.type == 'habit' && data.amount in [10, 20]) ||
+        (data.type == 'daily_bonus' && data.amount == 30) ||
+        (data.type == 'streak_7' && data.amount == 50) ||
+        (data.type == 'challenge_win' && data.amount <= 200) ||
+        (data.type == 'team_goal' && data.amount <= 200) ||
+        (data.type == 'league_reward' && data.amount <= 100) ||
+        (data.type == 'referral_bonus' && data.amount == 30)
+      )
+      && data.sourceId is string && data.sourceId.size() >= 1 && data.sourceId.size() <= 160
+      && isValidDateStr(data.localDate)
+      && isValidWeekKey(data.weekKey)
+      && data.description is string && data.description.size() >= 1 && data.description.size() <= 120
+      && data.createdAt is timestamp;
+    }
+
+    function isValidCompetitionSeason(data, seasonId) {
+      return data.keys().hasAll([
+        'id', 'leagueType', 'name', 'weekKey', 'startDate', 'endDate', 'creatorId',
+        'memberUids', 'minVerificationLevel', 'maxCompetitionHabits', 'scoringWeights',
+        'rulesLocked', 'status', 'createdAt', 'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'id', 'leagueType', 'name', 'weekKey', 'startDate', 'endDate', 'creatorId',
+        'inviteCode', 'memberUids', 'minVerificationLevel', 'maxCompetitionHabits',
+        'scoringWeights', 'rulesLocked', 'status', 'winnerId', 'mostImprovedUid',
+        'settledAt', 'createdAt', 'updatedAt'
+      ])
+      && data.id == seasonId
+      && data.leagueType in ['circle', 'private']
+      && data.name is string && data.name.size() >= 1 && data.name.size() <= 64
+      && isValidWeekKey(data.weekKey)
+      && isValidDateStr(data.startDate)
+      && isValidDateStr(data.endDate)
+      && isValidId(data.creatorId)
+      && (!('inviteCode' in data) || (data.inviteCode is string && data.inviteCode.size() <= 16))
+      && data.memberUids is list && data.memberUids.size() >= 1
+      && (
+        (data.leagueType == 'private' && data.memberUids.size() <= 10) ||
+        (data.leagueType == 'circle' && data.memberUids.size() <= 100)
+      )
+      && data.memberUids[0] is string
+      && data.minVerificationLevel in ['basic', 'verified']
+      && data.maxCompetitionHabits == 5
+      && data.scoringWeights is map
+      && data.scoringWeights.keys().hasAll(['consistency', 'goalAttainment', 'stability'])
+      && data.scoringWeights.keys().hasOnly(['consistency', 'goalAttainment', 'stability'])
+      && data.scoringWeights.consistency == 60
+      && data.scoringWeights.goalAttainment == 25
+      && data.scoringWeights.stability == 15
+      && data.rulesLocked == true
+      && data.status in ['active', 'settled']
+      && (!('winnerId' in data) || (data.winnerId is string && data.winnerId.size() <= 128))
+      && (!('mostImprovedUid' in data) || (data.mostImprovedUid is string && data.mostImprovedUid.size() <= 128))
+      && (!('settledAt' in data) || data.settledAt is timestamp)
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidCompetitionParticipant(data, participantId) {
+      return data.keys().hasAll([
+        'id', 'seasonId', 'weekKey', 'userId', 'memberUids', 'displayName',
+        'username', 'level', 'titleKey', 'rulesAccepted', 'joinedAt', 'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'id', 'seasonId', 'weekKey', 'userId', 'memberUids', 'displayName',
+        'username', 'avatarUrl', 'level', 'titleKey', 'rulesAccepted', 'joinedAt', 'updatedAt'
+      ])
+      && data.id == participantId
+      && isValidId(data.seasonId)
+      && isValidWeekKey(data.weekKey)
+      && isValidId(data.userId)
+      && data.memberUids is list && data.memberUids.size() >= 1 && data.memberUids.size() <= 100
+      && data.userId in data.memberUids
+      && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 40
+      && data.username is string && data.username.size() >= 2 && data.username.size() <= 24
+      && (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() <= 300000))
+      && data.level is number && data.level >= 1
+      && data.titleKey is string && data.titleKey.size() >= 1 && data.titleKey.size() <= 32
+      && data.rulesAccepted == true
+      && data.joinedAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidCompetitionScore(data, scoreId) {
+      return data.keys().hasAll([
+        'id', 'seasonId', 'weekKey', 'userId', 'visibleTo', 'displayName', 'level',
+        'competitionScore', 'consistencyRate', 'goalAttainmentRate', 'stabilityRate',
+        'prevWeekConsistencyRate', 'improvementDelta', 'weeklyXp',
+        'completedCount', 'scheduledCount', 'verifiedCount', 'activeDays',
+        'seasonStatus', 'rewardClaimed', 'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'id', 'seasonId', 'weekKey', 'userId', 'visibleTo', 'displayName', 'avatarUrl', 'level',
+        'competitionScore', 'consistencyRate', 'goalAttainmentRate', 'stabilityRate',
+        'prevWeekConsistencyRate', 'improvementDelta', 'weeklyXp',
+        'completedCount', 'scheduledCount', 'verifiedCount', 'activeDays',
+        'seasonStatus', 'rewardClaimed', 'updatedAt'
+      ])
+      && data.id == scoreId
+      && isValidId(data.seasonId)
+      && isValidWeekKey(data.weekKey)
+      && isValidId(data.userId)
+      && data.visibleTo is list && data.visibleTo.size() >= 1 && data.visibleTo.size() <= 100
+      && data.userId in data.visibleTo
+      && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 40
+      && (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() <= 300000))
+      && data.level is number && data.level >= 1
+      && data.competitionScore is number && data.competitionScore >= 0 && data.competitionScore <= 1000
+      && data.consistencyRate is number && data.consistencyRate >= 0 && data.consistencyRate <= 100
+      && data.goalAttainmentRate is number && data.goalAttainmentRate >= 0 && data.goalAttainmentRate <= 100
+      && data.stabilityRate is number && data.stabilityRate >= 0 && data.stabilityRate <= 100
+      && data.prevWeekConsistencyRate is number && data.prevWeekConsistencyRate >= 0 && data.prevWeekConsistencyRate <= 100
+      && data.improvementDelta is number && data.improvementDelta >= -100 && data.improvementDelta <= 100
+      && data.weeklyXp is number && data.weeklyXp >= 0
+      && data.completedCount is number && data.completedCount >= 0
+      && data.scheduledCount is number && data.scheduledCount >= 0
+      && data.verifiedCount is number && data.verifiedCount >= 0
+      && data.activeDays is number && data.activeDays >= 0 && data.activeDays <= 7
+      && data.seasonStatus in ['active', 'settled']
+      && data.rewardClaimed is bool
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidFriendship(data, friendshipId) {
+      return data.keys().hasAll(['id', 'requesterId', 'recipientId', 'participants', 'status', 'createdAt', 'updatedAt'])
+      && data.keys().hasOnly(['id', 'requesterId', 'recipientId', 'participants', 'status', 'createdAt', 'updatedAt'])
+      && data.id == friendshipId
+      && data.requesterId is string && isValidId(data.requesterId)
+      && data.recipientId is string && isValidId(data.recipientId)
+      && data.requesterId != data.recipientId
+      && data.participants is list && data.participants.size() == 2
+      && data.requesterId in data.participants
+      && data.recipientId in data.participants
+      && data.status in ['pending', 'accepted', 'declined']
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidFeedItem(data, feedId) {
+      return data.keys().hasAll([
+        'id', 'userId', 'authorName', 'authorUsername', 'habitId', 'habitTitle', 'habitIcon',
+        'habitCategory', 'recordId', 'localDate', 'recordType', 'completedValue', 'unit',
+        'xpEarned', 'dailyCompleted', 'dailyTotal', 'streakDays', 'visibleTo',
+        'likesCount', 'cheersCount', 'commentsCount', 'createdAt'
+      ])
+      && data.keys().hasOnly([
+        'id', 'userId', 'authorName', 'authorUsername', 'authorAvatar', 'habitId', 'habitTitle', 'habitIcon',
+        'habitCategory', 'recordId', 'localDate', 'recordType', 'completedValue', 'completedTime', 'unit',
+        'verificationLevel', 'isCompetitionIncluded',
+        'xpEarned', 'dailyCompleted', 'dailyTotal', 'streakDays', 'photoDataUrl', 'visibleTo',
+        'likesCount', 'cheersCount', 'commentsCount', 'lastCommentId', 'createdAt'
+      ])
+      && data.id == feedId
+      && isValidId(data.userId)
+      && data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 40
+      && data.authorUsername is string && data.authorUsername.size() >= 2 && data.authorUsername.size() <= 24
+      && (!('authorAvatar' in data) || (data.authorAvatar is string && data.authorAvatar.size() <= 300000))
+      && isValidId(data.habitId)
+      && data.habitTitle is string && data.habitTitle.size() >= 1 && data.habitTitle.size() <= 48
+      && data.habitIcon is string && data.habitIcon.size() >= 1 && data.habitIcon.size() <= 32
+      && data.habitCategory is string && data.habitCategory.size() <= 24
+      && isValidId(data.recordId)
+      && isValidDateStr(data.localDate)
+      && data.recordType in ['check', 'value', 'time']
+      && data.completedValue is number && data.completedValue >= 0
+      && (!('completedTime' in data) || (data.completedTime is string && data.completedTime.size() <= 5))
+      && data.unit is string && data.unit.size() <= 16
+      && (!('verificationLevel' in data) || data.verificationLevel in ['basic', 'verified', 'integrated'])
+      && (!('isCompetitionIncluded' in data) || data.isCompetitionIncluded is bool)
+      && data.xpEarned in [10, 20]
+      && data.dailyCompleted is number && data.dailyCompleted >= 0
+      && data.dailyTotal is number && data.dailyTotal >= 0
+      && data.streakDays is number && data.streakDays >= 0
+      && (!('photoDataUrl' in data) || (data.photoDataUrl is string && data.photoDataUrl.size() <= 300000))
+      && data.visibleTo is list && data.visibleTo.size() >= 1 && data.visibleTo.size() <= 100
+      && data.userId in data.visibleTo
+      && data.likesCount is number && data.likesCount >= 0
+      && data.cheersCount is number && data.cheersCount >= 0
+      && data.commentsCount is number && data.commentsCount >= 0
+      && (!('lastCommentId' in data) || isValidId(data.lastCommentId))
+      && data.createdAt is timestamp;
+    }
+
+    function isValidChallenge(data, challengeId) {
+      return data.keys().hasAll([
+        'id', 'title', 'creatorId', 'opponentId', 'participantIds', 'habitTitle', 'habitIcon',
+        'recordType', 'targetValue', 'unit', 'startDate', 'endDate', 'totalDays',
+        'ruleType', 'xpPrize', 'status', 'winnerId', 'createdAt', 'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'id', 'title', 'templateKey', 'creatorId', 'opponentId', 'participantIds', 'habitTitle', 'habitIcon',
+        'recordType', 'targetValue', 'targetTime', 'dailyCap', 'unit', 'startDate', 'endDate', 'totalDays',
+        'ruleType', 'scoringMethod', 'requiredVerificationLevel', 'rulesLocked',
+        'xpPrize', 'status', 'winnerId', 'settledAt', 'createdAt', 'updatedAt'
+      ])
+      && data.id == challengeId
+      && isValidId(data.creatorId) && isValidId(data.opponentId)
+      && data.creatorId != data.opponentId
+      && data.participantIds is list && data.participantIds.size() == 2
+      && data.creatorId in data.participantIds && data.opponentId in data.participantIds
+      && data.title is string && data.title.size() >= 1 && data.title.size() <= 64
+      && (!('templateKey' in data) || (data.templateKey is string && data.templateKey.size() <= 40))
+      && data.habitTitle is string && data.habitTitle.size() >= 1 && data.habitTitle.size() <= 48
+      && data.habitIcon is string && data.habitIcon.size() >= 1 && data.habitIcon.size() <= 32
+      && data.recordType in ['check', 'value', 'time']
+      && data.targetValue is number && data.targetValue >= 0
+      && (!('targetTime' in data) || (data.targetTime is string && data.targetTime.size() <= 5))
+      && (!('dailyCap' in data) || (data.dailyCap is number && data.dailyCap >= 1 && data.dailyCap <= 1000))
+      && data.unit is string && data.unit.size() <= 16
+      && isValidDateStr(data.startDate)
+      && isValidDateStr(data.endDate)
+      && data.totalDays is number && data.totalDays >= 1 && data.totalDays <= 90
+      && data.ruleType in ['most_completions', 'highest_rate']
+      && (!('scoringMethod' in data) || data.scoringMethod in ['valid_count', 'capped_total_value', 'completion_rate'])
+      && (!('requiredVerificationLevel' in data) || data.requiredVerificationLevel in ['basic', 'verified'])
+      && (!('rulesLocked' in data) || data.rulesLocked is bool)
+      && data.xpPrize is number && data.xpPrize >= 10 && data.xpPrize <= 200
+      && data.status in ['pending', 'active', 'completed', 'declined']
+      && data.winnerId is string && data.winnerId.size() <= 128
+      && (!('settledAt' in data) || data.settledAt is timestamp)
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidChallengeMember(data, memberId) {
+      return data.keys().hasAll([
+        'id', 'challengeId', 'userId', 'participantIds', 'displayName',
+        'linkedHabitId', 'completedDates', 'completionsCount', 'completionRate',
+        'claimedReward', 'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'id', 'challengeId', 'userId', 'participantIds', 'displayName', 'avatarUrl',
+        'linkedHabitId', 'completedDates', 'completionsCount', 'effectiveValue',
+        'verifiedCompletionsCount', 'completionRate', 'claimedReward', 'updatedAt'
+      ])
+      && data.id == memberId
+      && isValidId(data.challengeId)
+      && isValidId(data.userId)
+      && data.participantIds is list && data.participantIds.size() == 2
+      && data.userId in data.participantIds
+      && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 40
+      && (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() <= 300000))
+      && data.linkedHabitId is string && data.linkedHabitId.size() <= 128
+      && data.completedDates is list && data.completedDates.size() <= 90
+      && (data.completedDates.size() == 0 || data.completedDates[0] is string)
+      && data.completionsCount is number && data.completionsCount >= 0
+      && (!('effectiveValue' in data) || (data.effectiveValue is number && data.effectiveValue >= 0))
+      && (!('verifiedCompletionsCount' in data) || (data.verifiedCompletionsCount is number && data.verifiedCompletionsCount >= 0))
+      && data.completionRate is number && data.completionRate >= 0 && data.completionRate <= 100
+      && data.claimedReward is bool
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidTeam(data, teamId) {
+      return data.keys().hasAll([
+        'id', 'name', 'creatorId', 'inviteCode', 'memberUids', 'memberCount', 'maxMembers',
+        'goalTitle', 'targetTotalCompletions', 'currentTotalCompletions', 'startDate', 'endDate',
+        'xpPrize', 'status', 'achievementUnlocked', 'createdAt', 'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'id', 'name', 'description', 'creatorId', 'inviteCode', 'memberUids', 'memberCount', 'maxMembers',
+        'goalTitle', 'goalType', 'goalUnit', 'minMemberContribution',
+        'targetTotalCompletions', 'currentTotalCompletions', 'startDate', 'endDate',
+        'xpPrize', 'status', 'achievementUnlocked', 'createdAt', 'updatedAt'
+      ])
+      && data.id == teamId
+      && data.name is string && data.name.size() >= 1 && data.name.size() <= 48
+      && (!('description' in data) || (data.description is string && data.description.size() <= 160))
+      && isValidId(data.creatorId)
+      && data.inviteCode is string && data.inviteCode.size() >= 4 && data.inviteCode.size() <= 16 && data.inviteCode.matches('^[A-Z0-9\\-]+$')
+      && data.memberUids is list && data.memberUids.size() >= 1 && data.memberUids.size() <= 10
+      && data.memberUids[0] is string
+      && data.memberCount is number && data.memberCount == data.memberUids.size()
+      && data.maxMembers == 10
+      && data.goalTitle is string && data.goalTitle.size() >= 1 && data.goalTitle.size() <= 64
+      && (!('goalType' in data) || data.goalType in ['total_completions', 'total_workouts', 'total_reading_mins', 'team_completion_rate'])
+      && (!('goalUnit' in data) || (data.goalUnit is string && data.goalUnit.size() <= 16))
+      && (!('minMemberContribution' in data) || (data.minMemberContribution is number && data.minMemberContribution >= 1 && data.minMemberContribution <= 500))
+      && data.targetTotalCompletions is number && data.targetTotalCompletions >= 1 && data.targetTotalCompletions <= 50000
+      && data.currentTotalCompletions is number && data.currentTotalCompletions >= 0
+      && isValidDateStr(data.startDate)
+      && isValidDateStr(data.endDate)
+      && data.xpPrize is number && data.xpPrize >= 10 && data.xpPrize <= 200
+      && data.status in ['active', 'completed']
+      && data.achievementUnlocked is bool
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidTeamMember(data, memberId) {
+      return data.keys().hasAll([
+        'id', 'teamId', 'userId', 'displayName', 'role',
+        'contributionCount', 'completedDates', 'claimedReward', 'joinedAt', 'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'id', 'teamId', 'userId', 'memberUids', 'displayName', 'avatarUrl', 'role',
+        'contributionCount', 'completedDates', 'claimedReward', 'joinedAt', 'updatedAt'
+      ])
+      && data.id == memberId
+      && isValidId(data.teamId)
+      && data.userId == request.auth.uid
+      && (!('memberUids' in data) || (data.memberUids is list && data.memberUids.size() >= 1 && data.memberUids.size() <= 10 && data.userId in data.memberUids))
+      && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 40
+      && (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() <= 300000))
+      && data.role in ['owner', 'member']
+      && data.contributionCount is number && data.contributionCount >= 0
+      && data.completedDates is list && data.completedDates.size() <= 90
+      && (data.completedDates.size() == 0 || data.completedDates[0] is string)
+      && data.claimedReward is bool
+      && data.joinedAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidBadgeKey(badgeKey) {
+      return badgeKey in [
+        'first_step', 'early_bird', 'bookworm', 'consistency_30', 'champion_5',
+        'improvement_30', 'league_champion', 'league_podium', 'most_improved',
+        'team_player', 'referral_mentor', 'centurion'
+      ];
+    }
+
+    function isValidAchievement(data, achievementId) {
+      return data.keys().hasAll(['id', 'userId', 'badgeKey', 'title', 'description', 'unlockedAt'])
+      && data.keys().hasOnly(['id', 'userId', 'badgeKey', 'title', 'description', 'unlockedAt'])
+      && data.id == achievementId
+      && data.userId == request.auth.uid
+      && achievementId == request.auth.uid + '_' + data.badgeKey
+      && isValidBadgeKey(data.badgeKey)
+      && data.title is string && data.title.size() >= 1 && data.title.size() <= 48
+      && data.description is string && data.description.size() >= 1 && data.description.size() <= 120
+      && data.unlockedAt is timestamp;
+    }
+
+    function isValidAchievementRecord(data, recordId) {
+      return data.keys().hasAll(['id', 'userId', 'badgeKey', 'title', 'description', 'sourceMetric', 'unlockedAt'])
+      && data.keys().hasOnly(['id', 'userId', 'badgeKey', 'title', 'description', 'sourceMetric', 'unlockedAt'])
+      && data.id == recordId
+      && data.userId == request.auth.uid
+      && recordId == request.auth.uid + '_' + data.badgeKey
+      && isValidBadgeKey(data.badgeKey)
+      && data.title is string && data.title.size() >= 1 && data.title.size() <= 48
+      && data.description is string && data.description.size() >= 1 && data.description.size() <= 120
+      && data.sourceMetric is string && data.sourceMetric.size() >= 1 && data.sourceMetric.size() <= 80
+      && data.unlockedAt is timestamp;
+    }
+
+    function isValidReferral(data, invitedUid) {
+      return data.keys().hasAll(['id', 'referrerUid', 'invitedUid', 'invitedName', 'status', 'claimedByReferrer', 'createdAt'])
+      && data.keys().hasOnly(['id', 'referrerUid', 'invitedUid', 'invitedName', 'status', 'firstRecordId', 'claimedByReferrer', 'createdAt', 'activatedAt'])
+      && data.id == invitedUid
+      && isValidId(data.referrerUid)
+      && isValidId(data.invitedUid)
+      && data.invitedUid == invitedUid
+      && data.referrerUid != data.invitedUid
+      && data.invitedName is string && data.invitedName.size() >= 1 && data.invitedName.size() <= 40
+      && data.status in ['pending', 'activated']
+      && (!('firstRecordId' in data) || (data.firstRecordId is string && data.firstRecordId.size() <= 160))
+      && data.claimedByReferrer is bool
+      && data.createdAt is timestamp
+      && (!('activatedAt' in data) || data.activatedAt is timestamp);
+    }
+
+    function isValidNotification(data, notificationId) {
+      return data.keys().hasAll(['id', 'userId', 'senderId', 'senderName', 'type', 'title', 'read', 'createdAt'])
+      && data.keys().hasOnly(['id', 'userId', 'senderId', 'senderName', 'senderAvatar', 'type', 'title', 'body', 'targetTab', 'targetId', 'read', 'createdAt'])
+      && data.id == notificationId
+      && isValidId(data.userId)
+      && isValidId(data.senderId)
+      && data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 40
+      && (!('senderAvatar' in data) || (data.senderAvatar is string && data.senderAvatar.size() <= 300000))
+      && data.type in ['friend_request', 'friend_accepted', 'like', 'cheer', 'comment', 'challenge_invite', 'challenge_result', 'team_invite', 'achievement']
+      && data.title is string && data.title.size() >= 1 && data.title.size() <= 80
+      && (!('body' in data) || (data.body is string && data.body.size() <= 180))
+      && (!('targetTab' in data) || (data.targetTab is string && data.targetTab.size() <= 24))
+      && (!('targetId' in data) || (data.targetId is string && data.targetId.size() <= 160))
+      && data.read is bool
+      && data.createdAt is timestamp;
+    }
+
+    // ====================
+    // Connection Probe
+    // ====================
+    match /test/{docId} {
+      allow get: if docId == 'connection';
+      allow list, write: if false;
+    }
+
+    // ====================
+    // Collections
+    // ====================
+
+    // 1. Private User Account (Strict Owner-Only PII Isolation)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow list: if false;
+      allow create: if isVerified() && isValidId(userId) && isOwner(userId)
+        && isValidUser(incoming(), userId)
+        && incoming().totalXp == 0
+        && incoming().weeklyXp == 0
+        && incoming().level == 1
+        && incoming().currentStreak == 0
+        && incoming().bestStreak == 0
+        && incoming().friendsCount == 0
+        && (!('firstCheckInDone' in incoming()) || incoming().firstCheckInDone == false)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isVerified() && isValidId(userId) && isOwner(userId)
+        && isValidUser(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().email == existing().email
+        && incoming().inviteCode == existing().inviteCode
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (!('referredByUid' in existing()) || incoming().get('referredByUid', '') == existing().referredByUid)
+        && (
+          // Action A: Profile & Settings update (no XP mutation)
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'username', 'displayName', 'bio', 'avatarUrl', 'timezone',
+              'privacySettings', 'notificationSettings', 'friendsCount', 'bestWeeklyRank', 'updatedAt'
+            ])
+            && incoming().totalXp == existing().totalXp
+            && incoming().weeklyXp == existing().weeklyXp
+            && incoming().level == existing().level
+          ) ||
+          // Action B: Verified XP progression backed by atomic xp_transactions ledger
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'totalXp', 'weeklyXp', 'weekKey', 'level', 'currentStreak', 'bestStreak',
+              'lastCheckInDate', 'lastDailyBonusDate', 'lastStreak7BonusDate',
+              'winsCount', 'firstCheckInDone', 'lastTxId', 'updatedAt'
+            ])
+            && ('lastTxId' in incoming())
+            && existsAfter(/databases/$(database)/documents/xp_transactions/$(incoming().lastTxId))
+            && getAfter(/databases/$(database)/documents/xp_transactions/$(incoming().lastTxId)).data.userId == userId
+            && incoming().totalXp == existing().totalXp + getAfter(/databases/$(database)/documents/xp_transactions/$(incoming().lastTxId)).data.amount
+            && (
+              (incoming().weekKey == existing().weekKey && incoming().weeklyXp == existing().weeklyXp + getAfter(/databases/$(database)/documents/xp_transactions/$(incoming().lastTxId)).data.amount) ||
+              (incoming().weekKey != existing().weekKey && incoming().weeklyXp == getAfter(/databases/$(database)/documents/xp_transactions/$(incoming().lastTxId)).data.amount)
+            )
+          )
+        );
+      allow delete: if false;
+    }
+
+    // 2. Public Profiles (Zero PII)
+    match /public_profiles/{userId} {
+      allow get: if isValidId(userId) && isSignedIn();
+      allow list: if isSignedIn() && resource.data.isDiscoverable == true;
+      allow create: if isVerified() && isValidId(userId) && isOwner(userId)
+        && isValidPublicProfile(incoming(), userId)
+        && incoming().totalXp == 0
+        && incoming().weeklyXp == 0
+        && incoming().level == 1
+        && incoming().updatedAt == request.time;
+
+      allow update: if isVerified() && isValidId(userId) && isOwner(userId)
+        && isValidPublicProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().inviteCode == existing().inviteCode
+        && incoming().updatedAt == request.time
+        && (
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'username', 'usernameLower', 'displayName', 'bio', 'avatarUrl',
+              'isDiscoverable', 'showProfilePublicly', 'friendsCount', 'bestWeeklyRank',
+              'weeklyCompetitionScore', 'weeklyConsistencyRate', 'weekKey', 'unlockedBadges', 'updatedAt'
+            ])
+            && incoming().totalXp == existing().totalXp
+            && incoming().weeklyXp == existing().weeklyXp
+            && incoming().level == existing().level
+          ) ||
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'totalXp', 'weeklyXp', 'weekKey', 'level', 'currentStreak', 'bestStreak',
+              'winsCount', 'weeklyCompetitionScore', 'weeklyConsistencyRate',
+              'unlockedBadges', 'lastTxId', 'updatedAt'
+            ])
+            && ('lastTxId' in incoming())
+            && existsAfter(/databases/$(database)/documents/xp_transactions/$(incoming().lastTxId))
+            && getAfter(/databases/$(database)/documents/xp_transactions/$(incoming().lastTxId)).data.userId == userId
+            && incoming().totalXp == existing().totalXp + getAfter(/databases/$(database)/documents/xp_transactions/$(incoming().lastTxId)).data.amount
+            && (
+              (incoming().weekKey == existing().weekKey && incoming().weeklyXp == existing().weeklyXp + getAfter(/databases/$(database)/documents/xp_transactions/$(incoming().lastTxId)).data.amount) ||
+              (incoming().weekKey != existing().weekKey && incoming().weeklyXp == getAfter(/databases/$(database)/documents/xp_transactions/$(incoming().lastTxId)).data.amount)
+            )
+          )
+        );
+      allow delete: if false;
+    }
+
+    // 3. Username Uniqueness Lookup
+    match /usernames/{usernameLower} {
+      allow get: if isValidId(usernameLower) && isSignedIn();
+      allow list: if false;
+      allow create: if isVerified() && isValidId(usernameLower)
+        && incoming().keys().hasAll(['uid', 'username', 'createdAt'])
+        && incoming().keys().hasOnly(['uid', 'username', 'createdAt'])
+        && incoming().uid == request.auth.uid
+        && incoming().username is string && incoming().username.size() >= 2 && incoming().username.size() <= 24
+        && incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isVerified() && isValidId(usernameLower) && existing().uid == request.auth.uid;
+    }
+
+    // 4. Invite Code Lookup
+    match /invites/{inviteCode} {
+      allow get: if isValidId(inviteCode) && isSignedIn();
+      allow list: if false;
+      allow create: if isVerified() && isValidId(inviteCode)
+        && incoming().keys().hasAll(['uid', 'inviteCode', 'createdAt'])
+        && incoming().keys().hasOnly(['uid', 'inviteCode', 'createdAt'])
+        && incoming().uid == request.auth.uid
+        && incoming().inviteCode == inviteCode
+        && incoming().createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // 5. Habits (Private habits strictly owner-only)
+    match /habits/{habitId} {
+      allow get: if isValidId(habitId) && isSignedIn() && (resource == null || existing().userId == request.auth.uid || existing().isPublic == true);
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.isPublic == true);
+      allow create: if isVerified() && isValidId(habitId)
+        && isValidHabit(incoming(), habitId)
+        && incoming().totalCompletions == 0
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(habitId)
+        && existing().userId == request.auth.uid
+        && isValidHabit(incoming(), habitId)
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'icon', 'category', 'frequency', 'targetDays', 'recordType',
+            'targetValue', 'targetTime', 'unit', 'reminderTime', 'xpReward',
+            'habitPurpose', 'isPublic', 'requirePhoto', 'sortOrder', 'archived', 'updatedAt'
+          ]) ||
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly(['totalCompletions', 'updatedAt'])
+            && incoming().totalCompletions == existing().totalCompletions + 1
+          )
+        );
+      allow delete: if isVerified() && isValidId(habitId) && existing().userId == request.auth.uid;
+    }
+
+    // 6. Habit Records (Deterministic ID prevents duplicate daily check-in; XP immutable)
+    match /habit_records/{recordId} {
+      allow get: if isValidId(recordId) && isSignedIn() && (
+        (resource == null && recordId.matches('^' + request.auth.uid + '_.*')) ||
+        (resource != null && (existing().userId == request.auth.uid || existing().isPublic == true))
+      );
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.isPublic == true);
+      allow create: if isVerified() && isValidId(recordId)
+        && isValidHabitRecord(incoming(), recordId)
+        && recordId == request.auth.uid + '_' + incoming().habitId + '_' + incoming().localDate
+        && exists(/databases/$(database)/documents/habits/$(incoming().habitId))
+        && get(/databases/$(database)/documents/habits/$(incoming().habitId)).data.userId == request.auth.uid
+        && incoming().xpEarned == get(/databases/$(database)/documents/habits/$(incoming().habitId)).data.xpReward
+        && incoming().isPublic == get(/databases/$(database)/documents/habits/$(incoming().habitId)).data.isPublic
+        && (!('editCount' in incoming()) || incoming().editCount == 0)
+        && incoming().completedAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(recordId)
+        && existing().userId == request.auth.uid
+        && isValidHabitRecord(incoming(), recordId)
+        && incoming().userId == existing().userId
+        && incoming().habitId == existing().habitId
+        && incoming().localDate == existing().localDate
+        && incoming().xpEarned == existing().xpEarned
+        && incoming().completedAt == existing().completedAt
+        && incoming().updatedAt == request.time
+        && incoming().get('editCount', 0) == existing().get('editCount', 0) + 1
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'completedValue', 'completedTime', 'note', 'photoDataUrl',
+          'timerSeconds', 'verificationLevel', 'verificationStatus', 'editCount', 'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
+    // 7. Habit Record Audit Logs (Immutable Audit Trail)
+    match /habit_record_audit_logs/{logId} {
+      allow get: if isValidId(logId) && isSignedIn() && (
+        (resource == null && logId.matches('^' + request.auth.uid + '_.*')) ||
+        (resource != null && existing().userId == request.auth.uid)
+      );
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isVerified() && isValidId(logId)
+        && isValidHabitRecordAuditLog(incoming(), logId)
+        && exists(/databases/$(database)/documents/habit_records/$(incoming().recordId))
+        && get(/databases/$(database)/documents/habit_records/$(incoming().recordId)).data.userId == request.auth.uid
+        && incoming().editedAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // 8. XP Transactions (Immutable Audit Ledger)
+    match /xp_transactions/{txId} {
+      allow get: if isValidId(txId) && isSignedIn() && (
+        (resource == null && txId.matches('^' + request.auth.uid + '_.*')) ||
+        (resource != null && existing().userId == request.auth.uid)
+      );
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isVerified() && isValidId(txId)
+        && isValidXpTransaction(incoming(), txId)
+        && incoming().createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // 9. Competition Seasons (Locked rules & Terminal Settlement Lock)
+    match /competition_seasons/{seasonId} {
+      allow get: if isValidId(seasonId) && isSignedIn() && (
+        (resource == null && (seasonId.matches('^circle_.*_' + request.auth.uid + '$') || seasonId.matches('^league_.*'))) ||
+        (resource != null && (
+          request.auth.uid in existing().memberUids ||
+          existing().creatorId == request.auth.uid ||
+          (existing().leagueType == 'private' && existing().status == 'active' && existing().memberUids.size() < 10)
+        ))
+      );
+      allow list: if isSignedIn() && (
+        request.auth.uid in resource.data.memberUids ||
+        (resource.data.leagueType == 'private' && resource.data.status == 'active' && request.query.limit <= 1)
+      );
+      allow create: if isVerified() && isValidId(seasonId)
+        && isValidCompetitionSeason(incoming(), seasonId)
+        && incoming().creatorId == request.auth.uid
+        && request.auth.uid in incoming().memberUids
+        && incoming().status == 'active'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(seasonId)
+        && isValidCompetitionSeason(incoming(), seasonId)
+        && existing().status == 'active'
+        && incoming().id == existing().id
+        && incoming().leagueType == existing().leagueType
+        && incoming().weekKey == existing().weekKey
+        && incoming().startDate == existing().startDate
+        && incoming().endDate == existing().endDate
+        && incoming().creatorId == existing().creatorId
+        && incoming().minVerificationLevel == existing().minVerificationLevel
+        && incoming().maxCompetitionHabits == existing().maxCompetitionHabits
+        && incoming().scoringWeights == existing().scoringWeights
+        && incoming().rulesLocked == existing().rulesLocked
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Join private league (max 10 members)
+          (
+            existing().leagueType == 'private'
+            && !(request.auth.uid in existing().memberUids)
+            && existing().memberUids.size() < 10
+            && request.auth.uid in incoming().memberUids
+            && incoming().memberUids.size() == existing().memberUids.size() + 1
+            && incoming().memberUids.hasAll(existing().memberUids)
+            && incoming().status == 'active'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['memberUids', 'updatedAt'])
+          ) ||
+          // Owner syncs circle friend roster during active week
+          (
+            existing().leagueType == 'circle'
+            && existing().creatorId == request.auth.uid
+            && request.auth.uid in incoming().memberUids
+            && incoming().status == 'active'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['memberUids', 'updatedAt'])
+          ) ||
+          // Settle active season (Terminal Lock)
+          (
+            (existing().creatorId == request.auth.uid || (existing().leagueType == 'private' && request.auth.uid in existing().memberUids))
+            && incoming().status == 'settled'
+            && ('winnerId' in incoming()) && incoming().winnerId != ''
+            && ('settledAt' in incoming()) && incoming().settledAt == request.time
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'winnerId', 'mostImprovedUid', 'settledAt', 'updatedAt'])
+          )
+        );
+      allow delete: if false;
+    }
+
+    // 10. Competition Participants
+    match /competition_participants/{participantId} {
+      allow get: if isValidId(participantId) && isSignedIn() && (
+        (resource == null && participantId.matches('.*_' + request.auth.uid + '$')) ||
+        (resource != null && request.auth.uid in existing().memberUids)
+      );
+      allow list: if isSignedIn() && request.auth.uid in resource.data.memberUids;
+      allow create: if isVerified() && isValidId(participantId)
+        && isValidCompetitionParticipant(incoming(), participantId)
+        && incoming().userId == request.auth.uid
+        && participantId == incoming().seasonId + '_' + request.auth.uid
+        && incoming().joinedAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(participantId)
+        && isValidCompetitionParticipant(incoming(), participantId)
+        && existing().userId == request.auth.uid
+        && incoming().userId == existing().userId
+        && incoming().seasonId == existing().seasonId
+        && incoming().weekKey == existing().weekKey
+        && incoming().joinedAt == existing().joinedAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'memberUids', 'displayName', 'username', 'avatarUrl', 'level', 'titleKey', 'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
+    // 11. Competition Scores
+    match /competition_scores/{scoreId} {
+      allow get: if isValidId(scoreId) && isSignedIn() && (
+        (resource == null && scoreId.matches('.*_' + request.auth.uid + '$')) ||
+        (resource != null && (existing().userId == request.auth.uid || request.auth.uid in existing().visibleTo))
+      );
+      allow list: if isSignedIn() && request.auth.uid in resource.data.visibleTo;
+      allow create: if isVerified() && isValidId(scoreId)
+        && isValidCompetitionScore(incoming(), scoreId)
+        && incoming().userId == request.auth.uid
+        && scoreId == incoming().seasonId + '_' + request.auth.uid
+        && incoming().rewardClaimed == false
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(scoreId)
+        && isValidCompetitionScore(incoming(), scoreId)
+        && existing().userId == request.auth.uid
+        && incoming().userId == existing().userId
+        && incoming().seasonId == existing().seasonId
+        && incoming().weekKey == existing().weekKey
+        && incoming().updatedAt == request.time
+        && (
+          // Active score recalculation
+          (
+            existing().seasonStatus == 'active'
+            && (!exists(/databases/$(database)/documents/competition_seasons/$(existing().seasonId)) ||
+                get(/databases/$(database)/documents/competition_seasons/$(existing().seasonId)).data.status == 'active')
+            && incoming().rewardClaimed == existing().rewardClaimed
+          ) ||
+          // Post-settlement reward claim only (score metrics frozen)
+          (
+            incoming().seasonStatus == 'settled'
+            && existing().rewardClaimed == false
+            && incoming().rewardClaimed == true
+            && incoming().diff(existing()).affectedKeys().hasOnly(['seasonStatus', 'rewardClaimed', 'updatedAt'])
+          )
+        );
+      allow delete: if false;
+    }
+
+    // 12. Friendships
+    match /friendships/{friendshipId} {
+      allow get: if isValidId(friendshipId) && isSignedIn() && (
+        (resource == null && (friendshipId.matches('^' + request.auth.uid + '_.*') || friendshipId.matches('.*_' + request.auth.uid + '$'))) ||
+        (resource != null && request.auth.uid in existing().participants)
+      );
+      allow list: if isSignedIn() && request.auth.uid in resource.data.participants;
+      allow create: if isVerified() && isValidId(friendshipId)
+        && isValidFriendship(incoming(), friendshipId)
+        && incoming().requesterId == request.auth.uid
+        && incoming().status == 'pending'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(friendshipId)
+        && isValidFriendship(incoming(), friendshipId)
+        && request.auth.uid == existing().recipientId
+        && existing().status == 'pending'
+        && incoming().status in ['accepted', 'declined']
+        && incoming().requesterId == existing().requesterId
+        && incoming().recipientId == existing().recipientId
+        && incoming().participants == existing().participants
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']);
+      allow delete: if isVerified() && isValidId(friendshipId) && request.auth.uid in existing().participants;
+    }
+
+    // 13. Activity Feed (Friend Circle Scoped)
+    match /activity_feed/{feedId} {
+      allow get: if isValidId(feedId) && isSignedIn() && (
+        (resource == null && feedId.matches('^' + request.auth.uid + '_.*')) ||
+        (resource != null && (existing().userId == request.auth.uid || request.auth.uid in existing().visibleTo))
+      );
+      allow list: if isSignedIn() && request.auth.uid in resource.data.visibleTo;
+      allow create: if isVerified() && isValidId(feedId)
+        && isValidFeedItem(incoming(), feedId)
+        && incoming().userId == request.auth.uid
+        && incoming().likesCount == 0
+        && incoming().cheersCount == 0
+        && incoming().commentsCount == 0
+        && incoming().createdAt == request.time;
+      allow update: if isVerified() && isValidId(feedId)
+        && request.auth.uid in existing().visibleTo
+        && isValidFeedItem(incoming(), feedId)
+        && incoming().userId == existing().userId
+        && incoming().recordId == existing().recordId
+        && incoming().createdAt == existing().createdAt
+        && (
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly(['likesCount', 'cheersCount'])
+            && incoming().likesCount >= 0 && incoming().cheersCount >= 0
+            && (incoming().likesCount - existing().likesCount) in [-1, 0, 1]
+            && (incoming().cheersCount - existing().cheersCount) in [-1, 0, 1]
+          ) ||
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly(['commentsCount', 'lastCommentId'])
+            && incoming().commentsCount == existing().commentsCount + 1
+            && ('lastCommentId' in incoming())
+            && existsAfter(/databases/$(database)/documents/activity_feed/$(feedId)/comments/$(incoming().lastCommentId))
+          ) ||
+          (
+            existing().userId == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['visibleTo'])
+          )
+        );
+      allow delete: if isVerified() && isValidId(feedId) && existing().userId == request.auth.uid;
+
+      // Subcollection: Reactions (Master Gate)
+      match /reactions/{reactorUid} {
+        allow get: if isValidId(feedId) && isValidId(reactorUid) && isSignedIn()
+          && exists(/databases/$(database)/documents/activity_feed/$(feedId))
+          && request.auth.uid in get(/databases/$(database)/documents/activity_feed/$(feedId)).data.visibleTo;
+        allow list: if isSignedIn()
+          && exists(/databases/$(database)/documents/activity_feed/$(feedId))
+          && request.auth.uid in get(/databases/$(database)/documents/activity_feed/$(feedId)).data.visibleTo;
+        allow create, update: if isVerified() && isValidId(feedId) && isValidId(reactorUid)
+          && reactorUid == request.auth.uid
+          && exists(/databases/$(database)/documents/activity_feed/$(feedId))
+          && request.auth.uid in get(/databases/$(database)/documents/activity_feed/$(feedId)).data.visibleTo
+          && incoming().keys().hasAll(['userId', 'displayName', 'type', 'createdAt'])
+          && incoming().keys().hasOnly(['userId', 'displayName', 'type', 'createdAt'])
+          && incoming().userId == request.auth.uid
+          && incoming().displayName is string && incoming().displayName.size() >= 1 && incoming().displayName.size() <= 40
+          && incoming().type in ['like', 'cheer']
+          && incoming().createdAt == request.time;
+        allow delete: if isVerified() && isValidId(feedId) && isValidId(reactorUid)
+          && reactorUid == request.auth.uid;
+      }
+
+      // Subcollection: Comments (Master Gate)
+      match /comments/{commentId} {
+        allow get: if isValidId(feedId) && isValidId(commentId) && isSignedIn()
+          && exists(/databases/$(database)/documents/activity_feed/$(feedId))
+          && request.auth.uid in get(/databases/$(database)/documents/activity_feed/$(feedId)).data.visibleTo;
+        allow list: if isSignedIn()
+          && exists(/databases/$(database)/documents/activity_feed/$(feedId))
+          && request.auth.uid in get(/databases/$(database)/documents/activity_feed/$(feedId)).data.visibleTo;
+        allow create: if isVerified() && isValidId(feedId) && isValidId(commentId)
+          && exists(/databases/$(database)/documents/activity_feed/$(feedId))
+          && request.auth.uid in get(/databases/$(database)/documents/activity_feed/$(feedId)).data.visibleTo
+          && incoming().keys().hasAll(['id', 'feedId', 'userId', 'authorName', 'text', 'createdAt'])
+          && incoming().keys().hasOnly(['id', 'feedId', 'userId', 'authorName', 'authorAvatar', 'text', 'createdAt'])
+          && incoming().id == commentId
+          && incoming().feedId == feedId
+          && incoming().userId == request.auth.uid
+          && incoming().authorName is string && incoming().authorName.size() >= 1 && incoming().authorName.size() <= 40
+          && (!('authorAvatar' in incoming()) || (incoming().authorAvatar is string && incoming().authorAvatar.size() <= 300000))
+          && incoming().text is string && incoming().text.size() >= 1 && incoming().text.size() <= 280
+          && incoming().createdAt == request.time;
+        allow update: if false;
+        allow delete: if isVerified() && isValidId(feedId) && isValidId(commentId) && existing().userId == request.auth.uid;
+      }
+    }
+
+    // 14. 1v1 Challenges (Rule Locking + Terminal State Locking)
+    match /challenges/{challengeId} {
+      allow get: if isValidId(challengeId) && isSignedIn() && resource != null && request.auth.uid in existing().participantIds;
+      allow list: if isSignedIn() && request.auth.uid in resource.data.participantIds;
+      allow create: if isVerified() && isValidId(challengeId)
+        && isValidChallenge(incoming(), challengeId)
+        && incoming().creatorId == request.auth.uid
+        && incoming().status == 'pending'
+        && incoming().winnerId == ''
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(challengeId)
+        && isValidChallenge(incoming(), challengeId)
+        && existing().status in ['pending', 'active']
+        && incoming().creatorId == existing().creatorId
+        && incoming().opponentId == existing().opponentId
+        && incoming().participantIds == existing().participantIds
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (
+            existing().status == 'pending'
+            && request.auth.uid == existing().opponentId
+            && incoming().status in ['active', 'declined']
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+          ) ||
+          (
+            existing().status == 'active'
+            && request.auth.uid in existing().participantIds
+            && incoming().status == 'completed'
+            && incoming().winnerId != ''
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'winnerId', 'settledAt', 'updatedAt'])
+          )
+        );
+      allow delete: if isVerified() && isValidId(challengeId)
+        && existing().creatorId == request.auth.uid
+        && existing().status == 'pending';
+    }
+
+    // 15. Challenge Members
+    match /challenge_members/{memberId} {
+      allow get: if isValidId(memberId) && isSignedIn() && (
+        (resource == null && memberId.matches('.*_' + request.auth.uid + '$')) ||
+        (resource != null && request.auth.uid in existing().participantIds)
+      );
+      allow list: if isSignedIn() && request.auth.uid in resource.data.participantIds;
+      allow create: if isVerified() && isValidId(memberId)
+        && isValidChallengeMember(incoming(), memberId)
+        && memberId == incoming().challengeId + '_' + incoming().userId
+        && existsAfter(/databases/$(database)/documents/challenges/$(incoming().challengeId))
+        && request.auth.uid in incoming().participantIds
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(memberId)
+        && isValidChallengeMember(incoming(), memberId)
+        && existing().userId == request.auth.uid
+        && incoming().userId == existing().userId
+        && incoming().challengeId == existing().challengeId
+        && incoming().participantIds == existing().participantIds
+        && incoming().updatedAt == request.time
+        && (
+          (
+            get(/databases/$(database)/documents/challenges/$(existing().challengeId)).data.status in ['pending', 'active']
+            && incoming().claimedReward == existing().claimedReward
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'linkedHabitId', 'completedDates', 'completionsCount', 'effectiveValue',
+              'verifiedCompletionsCount', 'completionRate', 'updatedAt'
+            ])
+          ) ||
+          (
+            get(/databases/$(database)/documents/challenges/$(existing().challengeId)).data.status == 'completed'
+            && existing().claimedReward == false
+            && incoming().claimedReward == true
+            && incoming().diff(existing()).affectedKeys().hasOnly(['claimedReward', 'updatedAt'])
+          )
+        );
+      allow delete: if false;
+    }
+
+    // 16A. Legacy Teams (Preserved for backward compatibility)
+    match /teams/{teamId} {
+      allow get: if isValidId(teamId) && isSignedIn() && resource != null
+        && (request.auth.uid in existing().memberUids || existing().memberCount < existing().maxMembers);
+      allow list: if isSignedIn() && request.auth.uid in resource.data.memberUids;
+      allow create: if isVerified() && isValidId(teamId)
+        && isValidTeam(incoming(), teamId)
+        && incoming().creatorId == request.auth.uid
+        && incoming().memberUids == [request.auth.uid]
+        && incoming().currentTotalCompletions == 0
+        && incoming().status == 'active'
+        && incoming().achievementUnlocked == false
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(teamId)
+        && isValidTeam(incoming(), teamId)
+        && incoming().creatorId == existing().creatorId
+        && incoming().inviteCode == existing().inviteCode
+        && incoming().maxMembers == existing().maxMembers
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (
+            !(request.auth.uid in existing().memberUids)
+            && existing().memberUids.size() < 10
+            && request.auth.uid in incoming().memberUids
+            && incoming().memberUids.size() == existing().memberUids.size() + 1
+            && incoming().memberUids.hasAll(existing().memberUids)
+            && incoming().diff(existing()).affectedKeys().hasOnly(['memberUids', 'memberCount', 'updatedAt'])
+          ) ||
+          (
+            request.auth.uid in existing().memberUids
+            && incoming().memberUids == existing().memberUids
+            && incoming().currentTotalCompletions >= existing().currentTotalCompletions
+            && incoming().currentTotalCompletions <= existing().currentTotalCompletions + 300
+            && (existing().status == 'active' || incoming().status == 'completed')
+            && incoming().diff(existing()).affectedKeys().hasOnly(['currentTotalCompletions', 'achievementUnlocked', 'status', 'updatedAt'])
+          )
+        );
+      allow delete: if isVerified() && isValidId(teamId) && existing().creatorId == request.auth.uid && existing().memberCount == 1;
+    }
+
+    // 16B. Team Challenges (3-10 Member Private Accountability Teams)
+    match /team_challenges/{teamId} {
+      allow get: if isValidId(teamId) && isSignedIn() && resource != null
+        && (request.auth.uid in existing().memberUids || existing().memberCount < existing().maxMembers);
+      allow list: if isSignedIn() && request.auth.uid in resource.data.memberUids;
+      allow create: if isVerified() && isValidId(teamId)
+        && isValidTeam(incoming(), teamId)
+        && incoming().creatorId == request.auth.uid
+        && incoming().memberUids == [request.auth.uid]
+        && incoming().currentTotalCompletions == 0
+        && incoming().status == 'active'
+        && incoming().achievementUnlocked == false
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(teamId)
+        && isValidTeam(incoming(), teamId)
+        && incoming().creatorId == existing().creatorId
+        && incoming().inviteCode == existing().inviteCode
+        && incoming().maxMembers == existing().maxMembers
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (
+            !(request.auth.uid in existing().memberUids)
+            && existing().memberUids.size() < 10
+            && request.auth.uid in incoming().memberUids
+            && incoming().memberUids.size() == existing().memberUids.size() + 1
+            && incoming().memberUids.hasAll(existing().memberUids)
+            && incoming().diff(existing()).affectedKeys().hasOnly(['memberUids', 'memberCount', 'updatedAt'])
+          ) ||
+          (
+            request.auth.uid in existing().memberUids
+            && incoming().memberUids == existing().memberUids
+            && incoming().currentTotalCompletions >= existing().currentTotalCompletions
+            && incoming().currentTotalCompletions <= existing().currentTotalCompletions + 300
+            && (existing().status == 'active' || incoming().status == 'completed')
+            && incoming().diff(existing()).affectedKeys().hasOnly(['currentTotalCompletions', 'achievementUnlocked', 'status', 'updatedAt'])
+          )
+        );
+      allow delete: if isVerified() && isValidId(teamId) && existing().creatorId == request.auth.uid && existing().memberCount == 1;
+    }
+
+    // 17. Team Invite Codes
+    match /team_invites/{inviteCode} {
+      allow get: if isValidId(inviteCode) && isSignedIn();
+      allow list: if false;
+      allow create: if isVerified() && isValidId(inviteCode)
+        && incoming().keys().hasAll(['inviteCode', 'teamId', 'teamName', 'creatorId', 'createdAt'])
+        && incoming().keys().hasOnly(['inviteCode', 'teamId', 'teamName', 'creatorId', 'createdAt'])
+        && incoming().inviteCode == inviteCode
+        && isValidId(incoming().teamId)
+        && incoming().teamName is string && incoming().teamName.size() >= 1 && incoming().teamName.size() <= 48
+        && incoming().creatorId == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // 18. Team Members (Supports both teams and team_challenges)
+    match /team_members/{memberId} {
+      allow get: if isValidId(memberId) && isSignedIn() && (
+        (resource == null && memberId.matches('.*_' + request.auth.uid + '$')) ||
+        (resource != null && (
+          (exists(/databases/$(database)/documents/team_challenges/$(existing().teamId)) &&
+            request.auth.uid in get(/databases/$(database)/documents/team_challenges/$(existing().teamId)).data.memberUids) ||
+          (exists(/databases/$(database)/documents/teams/$(existing().teamId)) &&
+            request.auth.uid in get(/databases/$(database)/documents/teams/$(existing().teamId)).data.memberUids)
+        ))
+      );
+      allow list: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        ('memberUids' in resource.data && resource.data.memberUids is list && request.auth.uid in resource.data.memberUids)
+      );
+      allow create: if isVerified() && isValidId(memberId)
+        && isValidTeamMember(incoming(), memberId)
+        && memberId == incoming().teamId + '_' + request.auth.uid
+        && (
+          existsAfter(/databases/$(database)/documents/team_challenges/$(incoming().teamId)) ||
+          existsAfter(/databases/$(database)/documents/teams/$(incoming().teamId))
+        )
+        && incoming().joinedAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(memberId)
+        && isValidTeamMember(incoming(), memberId)
+        && existing().userId == request.auth.uid
+        && incoming().userId == existing().userId
+        && incoming().teamId == existing().teamId
+        && incoming().joinedAt == existing().joinedAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['contributionCount', 'completedDates', 'claimedReward', 'memberUids', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // 19. Achievements
+    match /achievements/{achievementId} {
+      allow get: if isValidId(achievementId) && isSignedIn() && (
+        (resource == null && achievementId.matches('^' + request.auth.uid + '_.*')) ||
+        (resource != null && existing().userId == request.auth.uid)
+      );
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isVerified() && isValidId(achievementId)
+        && isValidAchievement(incoming(), achievementId)
+        && incoming().unlockedAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // 20. Achievement Records (Data-verified immutable unlock log)
+    match /achievement_records/{recordId} {
+      allow get: if isValidId(recordId) && isSignedIn() && (
+        (resource == null && recordId.matches('^' + request.auth.uid + '_.*')) ||
+        (resource != null && existing().userId == request.auth.uid)
+      );
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isVerified() && isValidId(recordId)
+        && isValidAchievementRecord(incoming(), recordId)
+        && incoming().unlockedAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // 21. Referrals (First-Check-In Activation Guard)
+    match /referrals/{invitedUid} {
+      allow get: if isValidId(invitedUid) && isSignedIn() && (
+        (resource == null && invitedUid == request.auth.uid) ||
+        (resource != null && (existing().invitedUid == request.auth.uid || existing().referrerUid == request.auth.uid))
+      );
+      allow list: if isSignedIn() && (
+        resource.data.referrerUid == request.auth.uid ||
+        resource.data.invitedUid == request.auth.uid
+      );
+      allow create: if isVerified() && isValidId(invitedUid)
+        && invitedUid == request.auth.uid
+        && isValidReferral(incoming(), invitedUid)
+        && incoming().status == 'pending'
+        && incoming().claimedByReferrer == false
+        && incoming().createdAt == request.time;
+      allow update: if isVerified() && isValidId(invitedUid)
+        && isValidReferral(incoming(), invitedUid)
+        && incoming().referrerUid == existing().referrerUid
+        && incoming().invitedUid == existing().invitedUid
+        && incoming().createdAt == existing().createdAt
+        && (
+          // Invited user activates after completing first habit record
+          (
+            existing().invitedUid == request.auth.uid
+            && existing().status == 'pending'
+            && incoming().status == 'activated'
+            && ('firstRecordId' in incoming()) && incoming().firstRecordId != ''
+            && (
+              exists(/databases/$(database)/documents/habit_records/$(incoming().firstRecordId)) ||
+              existsAfter(/databases/$(database)/documents/habit_records/$(incoming().firstRecordId))
+            )
+            && incoming().claimedByReferrer == false
+            && ('activatedAt' in incoming()) && incoming().activatedAt == request.time
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'firstRecordId', 'activatedAt'])
+          ) ||
+          // Referrer claims reward once activated
+          (
+            existing().referrerUid == request.auth.uid
+            && existing().status == 'activated'
+            && existing().claimedByReferrer == false
+            && incoming().claimedByReferrer == true
+            && incoming().diff(existing()).affectedKeys().hasOnly(['claimedByReferrer'])
+          )
+        );
+      allow delete: if false;
+    }
+
+    // 22. Notifications
+    match /notifications/{notificationId} {
+      allow get: if isValidId(notificationId) && isSignedIn() && resource != null && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isVerified() && isValidId(notificationId)
+        && isValidNotification(incoming(), notificationId)
+        && incoming().senderId == request.auth.uid
+        && incoming().read == false
+        && incoming().createdAt == request.time;
+      allow update: if isVerified() && isValidId(notificationId)
+        && existing().userId == request.auth.uid
+        && isValidNotification(incoming(), notificationId)
+        && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+      allow delete: if isVerified() && isValidId(notificationId) && existing().userId == request.auth.uid;
+    }
+  }
+}

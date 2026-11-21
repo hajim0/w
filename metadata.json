@@ -1,0 +1,6 @@
+{
+  "name": "KADENCE — 社交自律習慣養成",
+  "description": "與好友並肩建立每日自律習慣、即時打卡動態、每週排行榜與團隊挑戰的極簡社交成長平台。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
